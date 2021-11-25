@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "hardhat/console.sol";
+import {Base64} from "./libraries/Base64.sol";
 
 contract MyEpicNFT is ERC721URIStorage {
     using Counters for Counters.Counter;
@@ -67,22 +68,84 @@ contract MyEpicNFT is ERC721URIStorage {
         return firstWords[rand];
     }
 
+    function pickRandomSecondWord(uint256 tokenId)
+        public
+        view
+        returns (string memory)
+    {
+        uint256 rand = random(
+            string(abi.encodePacked("SECOND_WORD", Strings.toString(tokenId)))
+        );
+        rand = rand % secondWords.length;
+        return secondWords[rand];
+    }
+
+    function pickRandomThirdWord(uint256 tokenId)
+        public
+        view
+        returns (string memory)
+    {
+        uint256 rand = random(
+            string(abi.encodePacked("THIRD_WORD", Strings.toString(tokenId)))
+        );
+        rand = rand % thirdWords.length;
+        return thirdWords[rand];
+    }
+
     function random(string memory input) internal pure returns (uint256) {
         return uint256(keccak256(abi.encodePacked(input)));
     }
 
     function makeAnEpicNFT() public {
         uint256 newItemId = _tokenIds.current();
-        _safeMint(msg.sender, newItemId);
-        _setTokenURI(
-            newItemId,
-            "data:application/json;base64,ewogICAgIm5hbWUiOiAiU2FsbW9uVG9mdUtpdHR5IiwKICAgICJkZXNjcmlwdGlvbiI6ICJBbiBORlQgZnJvbSB0aGUgaGlnaGx5IGFjY2xhaW1lZCBzcXVhcmUgY29sbGVjdGlvbiIsCiAgICAiaW1hZ2UiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhCeVpYTmxjblpsUVhOd1pXTjBVbUYwYVc4OUluaE5hVzVaVFdsdUlHMWxaWFFpSUhacFpYZENiM2c5SWpBZ01DQXpOVEFnTXpVd0lqNEtJQ0FnSUR4emRIbHNaVDR1WW1GelpTQjdJR1pwYkd3NklIZG9hWFJsT3lCbWIyNTBMV1poYldsc2VUb2djMlZ5YVdZN0lHWnZiblF0YzJsNlpUb2dNVFJ3ZURzZ2ZUd3ZjM1I1YkdVK0NpQWdJQ0E4Y21WamRDQjNhV1IwYUQwaU1UQXdKU0lnYUdWcFoyaDBQU0l4TURBbElpQm1hV3hzUFNKaWJHRmpheUlnTHo0S0lDQWdJRHgwWlhoMElIZzlJalV3SlNJZ2VUMGlOVEFsSWlCamJHRnpjejBpWW1GelpTSWdaRzl0YVc1aGJuUXRZbUZ6Wld4cGJtVTlJbTFwWkdSc1pTSWdkR1Y0ZEMxaGJtTm9iM0k5SW0xcFpHUnNaU0krVTJGc2JXOXVWRzltZFV0cGRIUjVQQzkwWlhoMFBnbzhMM04yWno0SyIKfQo="
+
+        string memory first = pickRandomFirstWord(newItemId);
+        string memory second = pickRandomSecondWord(newItemId);
+        string memory third = pickRandomThirdWord(newItemId);
+        string memory combinedWord = string(
+            abi.encodePacked(first, second, third)
         );
+
+        string memory finalSvg = string(
+            abi.encodePacked(baseSvg, combinedWord, "</text></svg>")
+        );
+
+        // Get all the JSON metadata in place and base64 encode it.
+        string memory json = Base64.encode(
+            bytes(
+                string(
+                    abi.encodePacked(
+                        '{"name": "',
+                        // We set the title of our NFT as the generated word.
+                        combinedWord,
+                        '", "description": "A highly acclaimed collection of squares.", "image": "data:image/svg+xml;base64,',
+                        // We add data:image/svg+xml;base64 and then append our base64 encode our svg.
+                        Base64.encode(bytes(finalSvg)),
+                        '"}'
+                    )
+                )
+            )
+        );
+
+        // Just like before, we prepend data:application/json;base64, to our data.
+        string memory finalTokenUri = string(
+            abi.encodePacked("data:application/json;base64,", json)
+        );
+
+        console.log("\n--------------------");
+        console.log(finalTokenUri);
+        console.log("--------------------\n");
+
+        _safeMint(msg.sender, newItemId);
+
+        // Update your URI!!!
+        _setTokenURI(newItemId, finalTokenUri);
+
+        _tokenIds.increment();
         console.log(
             "An NFT w/ ID %s has been minted to %s",
             newItemId,
             msg.sender
         );
-        _tokenIds.increment();
     }
 }
